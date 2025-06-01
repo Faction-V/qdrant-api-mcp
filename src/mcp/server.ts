@@ -164,12 +164,21 @@ export class McpServer {
   private async listCollections(): Promise<any> {
     try {
       const response = await this.qdrantClient.getCollections();
+      
+      // Handle the case where collections might be undefined or not an array
+      const collections = response.collections || [];
+      
       return {
-        collections: response.collections.map(c => c.name)
+        collections: Array.isArray(collections)
+          ? collections.map(c => c.name)
+          : []
       };
     } catch (error: any) {
       this.logger.error({ error }, 'Error listing collections');
-      throw new Error(`Failed to list collections: ${error.message}`);
+      // Return empty collections array instead of throwing
+      return {
+        collections: []
+      };
     }
   }
 

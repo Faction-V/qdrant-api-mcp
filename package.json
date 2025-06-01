@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
+    "start:prod": "node dist/index.js &",
+    "start:mcp": "node dist/mcp-server.js",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node -r tsconfig-paths/register src/index.ts'",
+    "dev:mcp": "nodemon --watch 'src/**/*.ts' --exec 'ts-node -r tsconfig-paths/register src/mcp-server.ts'",
     "generate-client": "openapi --input ./openapi-collections.ytt.yaml --output ./src/generated/qdrant-client",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -16,6 +19,7 @@
   "dependencies": {
     "@fastify/cors": "^11.0.1",
     "@fastify/env": "^5.0.2",
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "axios": "^1.9.0",
     "dotenv": "^16.5.0",
     "fastify": "^5.3.3",

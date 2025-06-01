@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "qdrant-api": {
+      "command": "node",
+      "args": [
+        "/Users/admin/dev/cap/qdrant_mcp/dist/index.js"
+      ],
+      "env": {
+        "QDRANT_URL": "http://localhost:6335",
+        "QDRANT_API_KEY": "",
+        "PORT": "3000",
+        "HOST": "localhost"
+      },
+      "alwaysAllow": [
+        "list_collections",
+        "create_collection",
+        "get_collection",
+        "delete_collection",
+        "update_collection"
+      ]
+    }
+  }
+}

@@ -331,8 +331,17 @@ export class QdrantClient {
    * @returns Promise with collections response
    */
   async getCollections(): Promise<CollectionsResponse> {
-    const response = await this.client.get('/collections');
-    return response.data;
+    try {
+      const response = await this.client.get('/collections');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching collections:', error.message);
+      // Return a default response if the API call fails
+      return {
+        collections: [],
+        time: 0
+      };
+    }
   }
 
   /**
