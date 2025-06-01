@@ -137,6 +137,15 @@ export interface CollectionsResponse {
 }
 
 /**
+ * Interface for Qdrant API response wrapper
+ */
+export interface QdrantApiResponse<T> {
+  result: T;
+  status: string;
+  time: number;
+}
+
+/**
  * Interface for collection description
  */
 export interface CollectionDescription {
@@ -332,10 +341,9 @@ export class QdrantClient {
    */
   async getCollections(): Promise<CollectionsResponse> {
     try {
-      const response = await this.client.get('/collections');
-      return response.data;
+      const response = await this.client.get<QdrantApiResponse<CollectionsResponse>>('/collections');
+      return response.data.result;
     } catch (error: any) {
-      console.error('Error fetching collections:', error.message);
       // Return a default response if the API call fails
       return {
         collections: [],
