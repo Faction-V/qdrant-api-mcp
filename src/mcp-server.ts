@@ -27,7 +27,7 @@ const qdrantClient = new QdrantClient(config);
 // Create MCP server
 const server = new Server(
   {
-    name: 'qdrant-collections-server',
+    name: 'qdrant-api-server',
     version: '1.0.0',
   },
   {
@@ -143,6 +143,477 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['collection_name'],
         },
       },
+      // Points operations
+      {
+        name: 'upsert_points',
+        description: 'Insert or update points in a collection',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            points: {
+              type: 'array',
+              description: 'Array of points to upsert',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {
+                    oneOf: [
+                      { type: 'string' },
+                      { type: 'number' }
+                    ],
+                    description: 'Point ID',
+                  },
+                  vector: {
+                    oneOf: [
+                      {
+                        type: 'array',
+                        items: { type: 'number' },
+                        description: 'Dense vector',
+                      },
+                      {
+                        type: 'object',
+                        description: 'Named vectors',
+                      }
+                    ],
+                  },
+                  payload: {
+                    type: 'object',
+                    description: 'Point payload',
+                  },
+                },
+                required: ['id'],
+              },
+            },
+            wait: {
+              type: 'boolean',
+              description: 'Wait for changes to actually happen',
+            },
+          },
+          required: ['collection_name', 'points'],
+        },
+      },
+      {
+        name: 'search_points',
+        description: 'Search for similar points in a collection',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection to search in',
+            },
+            vector: {
+              type: 'array',
+              items: { type: 'number' },
+              description: 'Query vector',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of results',
+              default: 10,
+            },
+            offset: {
+              type: 'number',
+              description: 'Offset for pagination',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions',
+            },
+            score_threshold: {
+              type: 'number',
+              description: 'Minimum score threshold',
+            },
+            with_payload: {
+              oneOf: [
+                { type: 'boolean' },
+                {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              ],
+              description: 'Include payload in results',
+            },
+            with_vector: {
+              oneOf: [
+                { type: 'boolean' },
+                {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              ],
+              description: 'Include vector in results',
+            },
+          },
+          required: ['collection_name', 'vector'],
+        },
+      },
+      {
+        name: 'scroll_points',
+        description: 'Scroll through points in a collection',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            offset: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'number' }
+              ],
+              description: 'Offset point ID for pagination',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of points to return',
+              default: 10,
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions',
+            },
+            with_payload: {
+              oneOf: [
+                { type: 'boolean' },
+                {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              ],
+              description: 'Include payload in results',
+            },
+            with_vector: {
+              oneOf: [
+                { type: 'boolean' },
+                {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              ],
+              description: 'Include vector in results',
+            },
+          },
+          required: ['collection_name'],
+        },
+      },
+      {
+        name: 'count_points',
+        description: 'Count points in a collection',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions',
+            },
+            exact: {
+              type: 'boolean',
+              description: 'Use exact counting',
+            },
+          },
+          required: ['collection_name'],
+        },
+      },
+      {
+        name: 'recommend_points',
+        description: 'Get point recommendations based on positive and negative examples',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            positive: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' }
+                ]
+              },
+              description: 'Positive example point IDs',
+            },
+            negative: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' }
+                ]
+              },
+              description: 'Negative example point IDs',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of results',
+              default: 10,
+            },
+            offset: {
+              type: 'number',
+              description: 'Offset for pagination',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions',
+            },
+            score_threshold: {
+              type: 'number',
+              description: 'Minimum score threshold',
+            },
+            with_payload: {
+              oneOf: [
+                { type: 'boolean' },
+                {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              ],
+              description: 'Include payload in results',
+            },
+            with_vector: {
+              oneOf: [
+                { type: 'boolean' },
+                {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              ],
+              description: 'Include vector in results',
+            },
+          },
+          required: ['collection_name', 'positive'],
+        },
+      },
+      {
+        name: 'get_point',
+        description: 'Get a single point by ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            point_id: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'number' }
+              ],
+              description: 'ID of the point to retrieve',
+            },
+          },
+          required: ['collection_name', 'point_id'],
+        },
+      },
+      {
+        name: 'delete_point',
+        description: 'Delete a single point by ID',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            point_id: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'number' }
+              ],
+              description: 'ID of the point to delete',
+            },
+            wait: {
+              type: 'boolean',
+              description: 'Wait for changes to actually happen',
+            },
+          },
+          required: ['collection_name', 'point_id'],
+        },
+      },
+      {
+        name: 'delete_points',
+        description: 'Delete multiple points by filter or IDs',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            points: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' }
+                ]
+              },
+              description: 'Array of point IDs to delete',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions for points to delete',
+            },
+            wait: {
+              type: 'boolean',
+              description: 'Wait for changes to actually happen',
+            },
+          },
+          required: ['collection_name'],
+        },
+      },
+      {
+        name: 'set_payload',
+        description: 'Set payload for points',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            payload: {
+              type: 'object',
+              description: 'Payload to set',
+            },
+            points: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' }
+                ]
+              },
+              description: 'Array of point IDs',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions for points',
+            },
+            wait: {
+              type: 'boolean',
+              description: 'Wait for changes to actually happen',
+            },
+          },
+          required: ['collection_name', 'payload'],
+        },
+      },
+      {
+        name: 'overwrite_payload',
+        description: 'Overwrite payload for points',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            payload: {
+              type: 'object',
+              description: 'Payload to set',
+            },
+            points: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' }
+                ]
+              },
+              description: 'Array of point IDs',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions for points',
+            },
+            wait: {
+              type: 'boolean',
+              description: 'Wait for changes to actually happen',
+            },
+          },
+          required: ['collection_name', 'payload'],
+        },
+      },
+      {
+        name: 'delete_payload',
+        description: 'Delete specific payload keys from points',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            keys: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Payload keys to delete',
+            },
+            points: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' }
+                ]
+              },
+              description: 'Array of point IDs',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions for points',
+            },
+            wait: {
+              type: 'boolean',
+              description: 'Wait for changes to actually happen',
+            },
+          },
+          required: ['collection_name', 'keys'],
+        },
+      },
+      {
+        name: 'clear_payload',
+        description: 'Clear all payload from points',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            collection_name: {
+              type: 'string',
+              description: 'Name of the collection',
+            },
+            points: {
+              type: 'array',
+              items: {
+                oneOf: [
+                  { type: 'string' },
+                  { type: 'number' }
+                ]
+              },
+              description: 'Array of point IDs',
+            },
+            filter: {
+              type: 'object',
+              description: 'Filter conditions for points',
+            },
+            wait: {
+              type: 'boolean',
+              description: 'Wait for changes to actually happen',
+            },
+          },
+          required: ['collection_name'],
+        },
+      },
     ],
   };
 });
@@ -225,6 +696,167 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: JSON.stringify({ success: result }, null, 2),
+            },
+          ],
+        };
+      }
+
+      // Points operations
+      case 'upsert_points': {
+        const { collection_name, points, wait } = args as any;
+        const result = await qdrantClient.upsertPoints(
+          collection_name,
+          { points },
+          wait
+        );
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'search_points': {
+        const { collection_name, ...searchParams } = args as any;
+        const result = await qdrantClient.searchPoints(collection_name, searchParams);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'scroll_points': {
+        const { collection_name, ...scrollParams } = args as any;
+        const result = await qdrantClient.scrollPoints(collection_name, scrollParams);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'count_points': {
+        const { collection_name, ...countParams } = args as any;
+        const result = await qdrantClient.countPoints(collection_name, countParams);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'recommend_points': {
+        const { collection_name, ...recommendParams } = args as any;
+        const result = await qdrantClient.recommendPoints(collection_name, recommendParams);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_point': {
+        const { collection_name, point_id } = args as any;
+        const result = await qdrantClient.getPoint(collection_name, point_id);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'delete_point': {
+        const { collection_name, point_id, wait } = args as any;
+        const result = await qdrantClient.deletePoint(collection_name, point_id, wait);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'delete_points': {
+        const { collection_name, wait, ...deleteParams } = args as any;
+        const result = await qdrantClient.deletePoints(collection_name, deleteParams, wait);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'set_payload': {
+        const { collection_name, wait, ...payloadParams } = args as any;
+        const result = await qdrantClient.setPayload(collection_name, payloadParams, wait);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'overwrite_payload': {
+        const { collection_name, wait, ...payloadParams } = args as any;
+        const result = await qdrantClient.overwritePayload(collection_name, payloadParams, wait);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'delete_payload': {
+        const { collection_name, wait, ...deleteParams } = args as any;
+        const result = await qdrantClient.deletePayload(collection_name, deleteParams, wait);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'clear_payload': {
+        const { collection_name, wait, ...clearParams } = args as any;
+        const result = await qdrantClient.clearPayload(collection_name, clearParams, wait);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(result, null, 2),
             },
           ],
         };

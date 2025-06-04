@@ -11,7 +11,7 @@ export interface CollectionInfo {
   points_count: number;
   segments_count: number;
   config: CollectionConfig;
-  payload_schema?: Record<string, PayloadSchemaType>;
+  payload_schema?: { [key: string]: PayloadSchemaType };
 }
 
 /**
@@ -117,7 +117,7 @@ export interface BinaryQuantization {
 export interface PayloadSchemaType {
   data_type: string;
   points?: number;
-  indexes?: Record<string, PayloadIndexParams>;
+  indexes?: { [key: string]: PayloadIndexParams };
 }
 
 /**
@@ -125,7 +125,7 @@ export interface PayloadSchemaType {
  */
 export interface PayloadIndexParams {
   type: string;
-  options?: Record<string, unknown>;
+  options?: { [key: string]: unknown };
 }
 
 /**
@@ -308,7 +308,225 @@ export interface WriteOrdering {
 }
 
 /**
- * Qdrant client for interacting with the Qdrant Collections API
+ * Interface for point ID (can be string or number)
+ */
+export type PointId = string | number;
+
+/**
+ * Interface for vector data
+ */
+export interface Vector {
+  [key: string]: number[] | { [key: string]: number[] };
+}
+
+/**
+ * Interface for point payload
+ */
+export interface Payload {
+  [key: string]: any;
+}
+
+/**
+ * Interface for a point record
+ */
+export interface PointRecord {
+  id: PointId;
+  payload?: Payload;
+  vector?: Vector;
+}
+
+/**
+ * Interface for scored point (search result)
+ */
+export interface ScoredPoint {
+  id: PointId;
+  version: number;
+  score: number;
+  payload?: Payload;
+  vector?: Vector;
+}
+
+/**
+ * Interface for point insert operations
+ */
+export interface PointInsertOperations {
+  points: PointRecord[];
+}
+
+/**
+ * Interface for search request
+ */
+export interface SearchRequest {
+  vector: number[];
+  limit?: number;
+  offset?: number;
+  filter?: Filter;
+  params?: SearchParams;
+  score_threshold?: number;
+  with_payload?: boolean | string[];
+  with_vector?: boolean | string[];
+}
+
+/**
+ * Interface for search parameters
+ */
+export interface SearchParams {
+  hnsw_ef?: number;
+  exact?: boolean;
+}
+
+/**
+ * Interface for filter conditions
+ */
+export interface Filter {
+  should?: Condition[];
+  must?: Condition[];
+  must_not?: Condition[];
+}
+
+/**
+ * Interface for filter condition
+ */
+export interface Condition {
+  key?: string;
+  match?: MatchCondition;
+  range?: RangeCondition;
+  geo_bounding_box?: GeoBoundingBoxCondition;
+  geo_radius?: GeoRadiusCondition;
+  values_count?: ValuesCountCondition;
+}
+
+/**
+ * Interface for match condition
+ */
+export interface MatchCondition {
+  value?: any;
+  text?: string;
+  any?: any[];
+  except?: any[];
+}
+
+/**
+ * Interface for range condition
+ */
+export interface RangeCondition {
+  lt?: number;
+  gt?: number;
+  gte?: number;
+  lte?: number;
+}
+
+/**
+ * Interface for geo bounding box condition
+ */
+export interface GeoBoundingBoxCondition {
+  top_left: GeoPoint;
+  bottom_right: GeoPoint;
+}
+
+/**
+ * Interface for geo radius condition
+ */
+export interface GeoRadiusCondition {
+  center: GeoPoint;
+  radius: number;
+}
+
+/**
+ * Interface for geo point
+ */
+export interface GeoPoint {
+  lon: number;
+  lat: number;
+}
+
+/**
+ * Interface for values count condition
+ */
+export interface ValuesCountCondition {
+  lt?: number;
+  gt?: number;
+  gte?: number;
+  lte?: number;
+}
+
+/**
+ * Interface for scroll request
+ */
+export interface ScrollRequest {
+  offset?: PointId;
+  limit?: number;
+  filter?: Filter;
+  with_payload?: boolean | string[];
+  with_vector?: boolean | string[];
+}
+
+/**
+ * Interface for scroll result
+ */
+export interface ScrollResult {
+  points: PointRecord[];
+  next_page_offset?: PointId;
+}
+
+/**
+ * Interface for count request
+ */
+export interface CountRequest {
+  filter?: Filter;
+  exact?: boolean;
+}
+
+/**
+ * Interface for count result
+ */
+export interface CountResult {
+  count: number;
+}
+
+/**
+ * Interface for recommend request
+ */
+export interface RecommendRequest {
+  positive: PointId[];
+  negative?: PointId[];
+  limit?: number;
+  offset?: number;
+  filter?: Filter;
+  params?: SearchParams;
+  score_threshold?: number;
+  with_payload?: boolean | string[];
+  with_vector?: boolean | string[];
+}
+
+/**
+ * Interface for points selector
+ */
+export interface PointsSelector {
+  points?: PointId[];
+  filter?: Filter;
+}
+
+/**
+ * Interface for set payload request
+ */
+export interface SetPayloadRequest {
+  payload: Payload;
+  points?: PointId[];
+  filter?: Filter;
+}
+
+/**
+ * Interface for delete payload request
+ */
+export interface DeletePayloadRequest {
+  keys: string[];
+  points?: PointId[];
+  filter?: Filter;
+}
+
+/**
+ * Qdrant client for interacting with the Qdrant Collections and Points API
  */
 export class QdrantClient {
   private client: AxiosInstance;
@@ -425,5 +643,252 @@ export class QdrantClient {
   async collectionExists(collectionName: string): Promise<CollectionExistence> {
     const response = await this.client.get(`/collections/${collectionName}/exists`);
     return response.data;
+  }
+
+  // Points operations
+
+  /**
+   * Upsert points into a collection
+   * @param collectionName Name of the collection
+   * @param request Point insert operations
+   * @param wait If true, wait for changes to actually happen
+   * @param ordering Define ordering guarantees for the operation
+   * @returns Promise with update result
+   */
+  async upsertPoints(
+    collectionName: string,
+    request: PointInsertOperations,
+    wait?: boolean,
+    ordering?: WriteOrdering
+  ): Promise<UpdateResult> {
+    const params = new URLSearchParams();
+    if (wait !== undefined) params.append('wait', wait.toString());
+    if (ordering) params.append('ordering', JSON.stringify(ordering));
+    
+    const url = `/collections/${collectionName}/points${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await this.client.put<QdrantApiResponse<UpdateResult>>(url, request);
+    return response.data.result;
+  }
+
+  /**
+   * Search for points in a collection
+   * @param collectionName Name of the collection
+   * @param request Search request
+   * @returns Promise with array of scored points
+   */
+  async searchPoints(
+    collectionName: string,
+    request: SearchRequest
+  ): Promise<ScoredPoint[]> {
+    const response = await this.client.post<QdrantApiResponse<ScoredPoint[]>>(
+      `/collections/${collectionName}/points/search`,
+      request
+    );
+    return response.data.result;
+  }
+
+  /**
+   * Scroll through points in a collection
+   * @param collectionName Name of the collection
+   * @param request Scroll request
+   * @returns Promise with scroll result
+   */
+  async scrollPoints(
+    collectionName: string,
+    request: ScrollRequest
+  ): Promise<ScrollResult> {
+    const response = await this.client.post<QdrantApiResponse<ScrollResult>>(
+      `/collections/${collectionName}/points/scroll`,
+      request
+    );
+    return response.data.result;
+  }
+
+  /**
+   * Count points in a collection
+   * @param collectionName Name of the collection
+   * @param request Count request
+   * @returns Promise with count result
+   */
+  async countPoints(
+    collectionName: string,
+    request: CountRequest
+  ): Promise<CountResult> {
+    const response = await this.client.post<QdrantApiResponse<CountResult>>(
+      `/collections/${collectionName}/points/count`,
+      request
+    );
+    return response.data.result;
+  }
+
+  /**
+   * Get recommendations for points
+   * @param collectionName Name of the collection
+   * @param request Recommend request
+   * @returns Promise with array of scored points
+   */
+  async recommendPoints(
+    collectionName: string,
+    request: RecommendRequest
+  ): Promise<ScoredPoint[]> {
+    const response = await this.client.post<QdrantApiResponse<ScoredPoint[]>>(
+      `/collections/${collectionName}/points/recommend`,
+      request
+    );
+    return response.data.result;
+  }
+
+  /**
+   * Get a single point by ID
+   * @param collectionName Name of the collection
+   * @param pointId ID of the point
+   * @returns Promise with point record
+   */
+  async getPoint(
+    collectionName: string,
+    pointId: PointId
+  ): Promise<PointRecord> {
+    const response = await this.client.get<QdrantApiResponse<PointRecord>>(
+      `/collections/${collectionName}/points/${pointId}`
+    );
+    return response.data.result;
+  }
+
+  /**
+   * Delete a single point by ID
+   * @param collectionName Name of the collection
+   * @param pointId ID of the point to delete
+   * @param wait If true, wait for changes to actually happen
+   * @param ordering Define ordering guarantees for the operation
+   * @returns Promise with update result
+   */
+  async deletePoint(
+    collectionName: string,
+    pointId: PointId,
+    wait?: boolean,
+    ordering?: WriteOrdering
+  ): Promise<UpdateResult> {
+    const params = new URLSearchParams();
+    if (wait !== undefined) params.append('wait', wait.toString());
+    if (ordering) params.append('ordering', JSON.stringify(ordering));
+    
+    const url = `/collections/${collectionName}/points/${pointId}${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await this.client.delete<QdrantApiResponse<UpdateResult>>(url);
+    return response.data.result;
+  }
+
+  /**
+   * Delete multiple points by filter or IDs
+   * @param collectionName Name of the collection
+   * @param request Points selector (filter or IDs)
+   * @param wait If true, wait for changes to actually happen
+   * @param ordering Define ordering guarantees for the operation
+   * @returns Promise with update result
+   */
+  async deletePoints(
+    collectionName: string,
+    request: PointsSelector,
+    wait?: boolean,
+    ordering?: WriteOrdering
+  ): Promise<UpdateResult> {
+    const params = new URLSearchParams();
+    if (wait !== undefined) params.append('wait', wait.toString());
+    if (ordering) params.append('ordering', JSON.stringify(ordering));
+    
+    const url = `/collections/${collectionName}/points/delete${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await this.client.post<QdrantApiResponse<UpdateResult>>(url, request);
+    return response.data.result;
+  }
+
+  /**
+   * Set payload for points
+   * @param collectionName Name of the collection
+   * @param request Set payload request
+   * @param wait If true, wait for changes to actually happen
+   * @param ordering Define ordering guarantees for the operation
+   * @returns Promise with update result
+   */
+  async setPayload(
+    collectionName: string,
+    request: SetPayloadRequest,
+    wait?: boolean,
+    ordering?: WriteOrdering
+  ): Promise<UpdateResult> {
+    const params = new URLSearchParams();
+    if (wait !== undefined) params.append('wait', wait.toString());
+    if (ordering) params.append('ordering', JSON.stringify(ordering));
+    
+    const url = `/collections/${collectionName}/points/payload${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await this.client.post<QdrantApiResponse<UpdateResult>>(url, request);
+    return response.data.result;
+  }
+
+  /**
+   * Overwrite payload for points
+   * @param collectionName Name of the collection
+   * @param request Set payload request
+   * @param wait If true, wait for changes to actually happen
+   * @param ordering Define ordering guarantees for the operation
+   * @returns Promise with update result
+   */
+  async overwritePayload(
+    collectionName: string,
+    request: SetPayloadRequest,
+    wait?: boolean,
+    ordering?: WriteOrdering
+  ): Promise<UpdateResult> {
+    const params = new URLSearchParams();
+    if (wait !== undefined) params.append('wait', wait.toString());
+    if (ordering) params.append('ordering', JSON.stringify(ordering));
+    
+    const url = `/collections/${collectionName}/points/payload${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await this.client.put<QdrantApiResponse<UpdateResult>>(url, request);
+    return response.data.result;
+  }
+
+  /**
+   * Delete payload keys from points
+   * @param collectionName Name of the collection
+   * @param request Delete payload request
+   * @param wait If true, wait for changes to actually happen
+   * @param ordering Define ordering guarantees for the operation
+   * @returns Promise with update result
+   */
+  async deletePayload(
+    collectionName: string,
+    request: DeletePayloadRequest,
+    wait?: boolean,
+    ordering?: WriteOrdering
+  ): Promise<UpdateResult> {
+    const params = new URLSearchParams();
+    if (wait !== undefined) params.append('wait', wait.toString());
+    if (ordering) params.append('ordering', JSON.stringify(ordering));
+    
+    const url = `/collections/${collectionName}/points/payload/delete${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await this.client.post<QdrantApiResponse<UpdateResult>>(url, request);
+    return response.data.result;
+  }
+
+  /**
+   * Clear all payload from points
+   * @param collectionName Name of the collection
+   * @param request Points selector (filter or IDs)
+   * @param wait If true, wait for changes to actually happen
+   * @param ordering Define ordering guarantees for the operation
+   * @returns Promise with update result
+   */
+  async clearPayload(
+    collectionName: string,
+    request: PointsSelector,
+    wait?: boolean,
+    ordering?: WriteOrdering
+  ): Promise<UpdateResult> {
+    const params = new URLSearchParams();
+    if (wait !== undefined) params.append('wait', wait.toString());
+    if (ordering) params.append('ordering', JSON.stringify(ordering));
+    
+    const url = `/collections/${collectionName}/points/payload/clear${params.toString() ? '?' + params.toString() : ''}`;
+    const response = await this.client.post<QdrantApiResponse<UpdateResult>>(url, request);
+    return response.data.result;
   }
 }

@@ -1,0 +1,373 @@
+#@ load("openapi.lib.yml", "response", "reference", "type", "array")
+
+paths:
+  /collections/{collection_name}/points:
+    put:
+      tags:
+        - Points
+      summary: Upsert points
+      description: Perform insert + updates on points. If point with given ID already exists - it will be overwritten.
+      operationId: upsert_points
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to upsert points into
+          required: true
+          schema:
+            type: string
+        - name: wait
+          in: query
+          description: If true, wait for changes to actually happen
+          required: false
+          schema:
+            type: boolean
+        - name: ordering
+          in: query
+          description: Define ordering guarantees for the operation
+          required: false
+          schema:
+            $ref: "#/components/schemas/WriteOrdering"
+      requestBody:
+        description: Operation to perform on points
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PointInsertOperations"
+      responses: #@ response(reference("UpdateResult"))
+
+    post:
+      tags:
+        - Points
+      summary: Search points
+      description: Look for the points which are closer to stored positive examples and at the same time further to negative examples.
+      operationId: search_points
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to search in
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Search request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses: #@ response(array(reference("ScoredPoint")))
+
+  /collections/{collection_name}/points/search:
+    post:
+      tags:
+        - Points
+      summary: Search points
+      description: Look for the points which are closer to stored positive examples and at the same time further to negative examples.
+      operationId: search_points_alt
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to search in
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Search request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses: #@ response(array(reference("ScoredPoint")))
+
+  /collections/{collection_name}/points/scroll:
+    post:
+      tags:
+        - Points
+      summary: Scroll points
+      description: Scroll request - paginate over all points which matches given filtering condition
+      operationId: scroll_points
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to scroll
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Scroll request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrollRequest"
+      responses: #@ response(reference("ScrollResult"))
+
+  /collections/{collection_name}/points/count:
+    post:
+      tags:
+        - Points
+      summary: Count points
+      description: Count points which matches given filtering condition
+      operationId: count_points
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to count points in
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Count request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CountRequest"
+      responses: #@ response(reference("CountResult"))
+
+  /collections/{collection_name}/points/recommend:
+    post:
+      tags:
+        - Points
+      summary: Recommend points
+      description: Look for the points which are closer to stored positive examples and at the same time further to negative examples.
+      operationId: recommend_points
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to recommend from
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Recommend request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendRequest"
+      responses: #@ response(array(reference("ScoredPoint")))
+
+  /collections/{collection_name}/points/{id}:
+    get:
+      tags:
+        - Points
+      summary: Get point
+      description: Retrieve full information of single point by id
+      operationId: get_point
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to retrieve from
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: ID of the point
+          required: true
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+      responses: #@ response(reference("Record"))
+
+    delete:
+      tags:
+        - Points
+      summary: Delete point
+      description: Delete point by id
+      operationId: delete_point
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to delete from
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          description: ID of the point to delete
+          required: true
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+        - name: wait
+          in: query
+          description: If true, wait for changes to actually happen
+          required: false
+          schema:
+            type: boolean
+        - name: ordering
+          in: query
+          description: Define ordering guarantees for the operation
+          required: false
+          schema:
+            $ref: "#/components/schemas/WriteOrdering"
+      responses: #@ response(reference("UpdateResult"))
+
+  /collections/{collection_name}/points/delete:
+    post:
+      tags:
+        - Points
+      summary: Delete points
+      description: Delete points by filter or by ids
+      operationId: delete_points
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection to delete from
+          required: true
+          schema:
+            type: string
+        - name: wait
+          in: query
+          description: If true, wait for changes to actually happen
+          required: false
+          schema:
+            type: boolean
+        - name: ordering
+          in: query
+          description: Define ordering guarantees for the operation
+          required: false
+          schema:
+            $ref: "#/components/schemas/WriteOrdering"
+      requestBody:
+        description: Delete request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PointsSelector"
+      responses: #@ response(reference("UpdateResult"))
+
+  /collections/{collection_name}/points/payload:
+    post:
+      tags:
+        - Points
+      summary: Set payload
+      description: Set payload values for points
+      operationId: set_payload
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection
+          required: true
+          schema:
+            type: string
+        - name: wait
+          in: query
+          description: If true, wait for changes to actually happen
+          required: false
+          schema:
+            type: boolean
+        - name: ordering
+          in: query
+          description: Define ordering guarantees for the operation
+          required: false
+          schema:
+            $ref: "#/components/schemas/WriteOrdering"
+      requestBody:
+        description: Set payload request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPayloadRequest"
+      responses: #@ response(reference("UpdateResult"))
+
+    put:
+      tags:
+        - Points
+      summary: Overwrite payload
+      description: Replace full payload of points with new one
+      operationId: overwrite_payload
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection
+          required: true
+          schema:
+            type: string
+        - name: wait
+          in: query
+          description: If true, wait for changes to actually happen
+          required: false
+          schema:
+            type: boolean
+        - name: ordering
+          in: query
+          description: Define ordering guarantees for the operation
+          required: false
+          schema:
+            $ref: "#/components/schemas/WriteOrdering"
+      requestBody:
+        description: Set payload request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPayloadRequest"
+      responses: #@ response(reference("UpdateResult"))
+
+  /collections/{collection_name}/points/payload/delete:
+    post:
+      tags:
+        - Points
+      summary: Delete payload
+      description: Delete specified key-value pairs from points payload
+      operationId: delete_payload
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection
+          required: true
+          schema:
+            type: string
+        - name: wait
+          in: query
+          description: If true, wait for changes to actually happen
+          required: false
+          schema:
+            type: boolean
+        - name: ordering
+          in: query
+          description: Define ordering guarantees for the operation
+          required: false
+          schema:
+            $ref: "#/components/schemas/WriteOrdering"
+      requestBody:
+        description: Delete payload request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeletePayloadRequest"
+      responses: #@ response(reference("UpdateResult"))
+
+  /collections/{collection_name}/points/payload/clear:
+    post:
+      tags:
+        - Points
+      summary: Clear payload
+      description: Remove all payload for specified points
+      operationId: clear_payload
+      parameters:
+        - name: collection_name
+          in: path
+          description: Name of the collection
+          required: true
+          schema:
+            type: string
+        - name: wait
+          in: query
+          description: If true, wait for changes to actually happen
+          required: false
+          schema:
+            type: boolean
+        - name: ordering
+          in: query
+          description: Define ordering guarantees for the operation
+          required: false
+          schema:
+            $ref: "#/components/schemas/WriteOrdering"
+      requestBody:
+        description: Clear payload request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PointsSelector"
+      responses: #@ response(reference("UpdateResult"))
