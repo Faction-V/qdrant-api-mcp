@@ -4,7 +4,9 @@ _default:
 [doc('start the MCP inspector')]
 [group('inspector')]
 inspect:
-    npx @modelcontextprotocol/inspector -e QDRANT_URL='http://localhost:6335' node {{ justfile_directory() }}dist/mcp-server.js 
+    npx kill-port 6274 -y
+    npx kill-port 6277 -y
+    npx @modelcontextprotocol/inspector -e QDRANT_URL='http://localhost:6335' node {{ justfile_directory() }}/dist/mcp-server.js
 
 [doc('kill the inspector process')]
 [group('inspector')]

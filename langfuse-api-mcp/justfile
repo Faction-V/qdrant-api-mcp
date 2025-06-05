@@ -1,0 +1,39 @@
+_default:
+    just --list
+
+[doc('start the MCP inspector')]
+[group('inspector')]
+inspect:
+    npx kill-port 6274 -y
+    npx kill-port 6277 -y
+    npx @modelcontextprotocol/inspector -e LANGFUSE_BASE_URL='https://cloud.langfuse.com' -e LANGFUSE_PUBLIC_KEY='' -e LANGFUSE_SECRET_KEY='' node {{ justfile_directory() }}/dist/mcp-server.js
+
+[doc('kill the inspector process')]
+[group('inspector')]
+kill-inspector:
+    pkill -f "inspector"
+
+[doc('Open the MCP inspector in a browser')]
+[group('inspector')]
+open-inspector:
+    open http://localhost:6274
+
+[doc('build the TypeScript project')]
+[group('build')]
+build:
+    npm run build
+
+[doc('install dependencies')]
+[group('setup')]
+install:
+    npm install
+
+[doc('run in development mode')]
+[group('dev')]
+dev:
+    npm run dev:mcp
+
+[doc('format the justfile(s)')]
+[group('utils')]
+fmt:
+    @just --fmt --unstable -f justfile
