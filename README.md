@@ -3,30 +3,37 @@
 A Model Context Protocol (MCP) server that wraps the Qdrant Collections and Points API.
 MCP tools are built straight from the official qdrant openapi schema files here: https://github.com/qdrant/qdrant/tree/master/openapi
 
+## Configure with Windsurf/Cursor
+To use this tool with Windsurf or Cursor, add the following to your configuration:
+
+```json
+{
+  "mcpServers": {
+    "qdrant-api": {
+      "command": "node",
+      "args": [
+        "/Users/admin/dev/cap/qdrant-api-mcp/dist/mcp-server.js"
+      ],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "QDRANT_API_KEY": "my-secret-key-or-blank"
+      }
+    }
+  }
+}
+```
+
 ## Features
 
-- Implements the MCP JSON-RPC specification
-- Provides access to Qdrant Collections and Points API
-- Supports the following collection operations:
-  - `list_collections`: Get a list of all collections
-  - `create_collection`: Create a new collection
-  - `get_collection`: Get detailed information about a collection
-  - `delete_collection`: Delete a collection
-  - `update_collection`: Update collection parameters
-- Supports the following points operations:
-  - `upsert_points`: Insert or update points in a collection
-  - `search_points`: Search for similar points in a collection
-  - `scroll_points`: Scroll through points in a collection
-  - `count_points`: Count points in a collection
-  - `recommend_points`: Get point recommendations based on positive/negative examples
-  - `get_point`: Get a single point by ID
-  - `delete_point`: Delete a single point by ID
-  - `delete_points`: Delete multiple points by filter or IDs
-  - `set_payload`: Set payload for points
-  - `overwrite_payload`: Overwrite payload for points
-  - `delete_payload`: Delete specific payload keys from points
-  - `clear_payload`: Clear all payload from points
-- Built with TypeScript and Axios
+- Implements the MCP JSON-RPC specification with structured JSON logs (Pino).
+- Resource discovery (`resources/list`, `resources/read`, `resources/templates/list`) advertises every configured cluster profile so MCP-aware tooling can “ping” the server before invoking tools.
+- Multi-cluster operation via optional `QDRANT_CLUSTER_PROFILES` and a `switch_cluster` tool. Change clusters without restarting the process.
+- Built-in request throttling (configurable via `MCP_RATE_LIMIT_MAX_REQUESTS`/`MCP_RATE_LIMIT_WINDOW_MS`) to prevent runaway hybrid queries.
+- Tools cover the full Collections/Points API plus new ergonomics:
+  - `describe_point`: combines payload, vector, and shard/cluster insights for a single point.
+  - `scroll_points_paginated`: emits resumable cursors for large scroll jobs.
+  - `switch_cluster`: inspects or updates the active cluster.
+- All existing collection & point tools remain available: `list_collections`, `create_collection`, `get_collection`, `delete_collection`, `update_collection`, `upsert_points`, `search_points`, `scroll_points`, `count_points`, `recommend_points`, `get_point`, `delete_point`, `delete_points`, `set_payload`, `overwrite_payload`, `delete_payload`, `clear_payload`.
 
 ## Prerequisites
 
@@ -52,6 +59,29 @@ PORT=3000
 HOST=localhost
 ```
 
+## Quickstart
+
+1. Install dependencies and compile once:
+   ```bash
+   npm install
+   npm run build
+   ```
+2. Point your MCP-compatible IDE/agent at the compiled entrypoint (`dist/mcp-server.js`). A sample config lives in `qdrant-mcp-config.json`.
+3. (Optional) Define multiple clusters in your environment:
+   ```bash
+   export QDRANT_CLUSTER_PROFILES='[
+     {"name":"prod","url":"https://prod.example","apiKey":"***","description":"Production search"},
+     {"name":"metric-media","url":"https://metric-media.example","apiKey":"***","labels":["metrics","readonly"]},
+     {"name":"test","url":"http://localhost:6333"}
+   ]'
+   export QDRANT_DEFAULT_CLUSTER=prod
+   ```
+4. Launch the MCP server (dev hot reload shown):
+   ```bash
+   npm run dev:mcp
+   ```
+5. From your MCP client, call `switch_cluster` (with no args) to verify the active cluster, or provide `{"cluster":"test"}` to pivot to a different backend without restarting.
+
 ## Usage
 
 ### Development
@@ -70,6 +100,74 @@ Build and run the server:
 npm run build
 npm start
 ```
+
+## Operational safeguards & logging
+
+- **Rate limiting:** `MCP_RATE_LIMIT_MAX_REQUESTS` (default `10`) and `MCP_RATE_LIMIT_WINDOW_MS` (default `1000`) bound the number of tool calls per cluster/tool combination. Tune these per environment to protect production clusters from runaway agents.
+- **Structured logs:** Set `LOG_LEVEL=debug` (or `info`, `warn`, etc.). Each MCP tool call is logged with `{event, tool, cluster, durationMs}` so Qdrant audit events can be correlated easily.
+- **Resource discovery:** `resources/list` advertises every configured cluster as `qdrant://clusters/<name>`. Reading the resource returns a JSON overview (active flag, collection preview, rate limits, safety hints).
+
+## Sample MCP tool calls
+
+Switch clusters without restarting the process:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "method": "tools/call",
+  "params": {
+    "name": "switch_cluster",
+    "arguments": { "cluster": "metric-media" }
+  }
+}
+```
+
+Resume a long scroll using the new pagination helper:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 99,
+  "method": "tools/call",
+  "params": {
+    "name": "scroll_points_paginated",
+    "arguments": {
+      "collection_name": "hybrid-docs",
+      "limit": 128,
+      "with_payload": true
+    }
+  }
+}
+```
+
+The response includes `cursor`; feed it back into the next call to continue from the previous `next_page_offset`.
+
+Deep dive into a single point (payload + vector + shard metadata):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "describe_point",
+    "arguments": {
+      "cluster": "prod",
+      "collection_name": "docs",
+      "point_id": "doc-123"
+    }
+  }
+}
+```
+
+## Best practices for production clusters
+
+- Keep destructive tools (collection/point mutation) disabled unless you have explicit approval for the target environment. The sample config only whitelists read-only tools by default.
+- Use `switch_cluster` to make sure you are operating on the intended cluster before issuing search/scroll commands.
+- Lower `MCP_RATE_LIMIT_MAX_REQUESTS` for clusters that back user-facing workloads.
+- Scrub or truncate payload data before pasting MCP responses into bug reports—cluster resources can include sensitive labels.
+- Rotate API keys regularly and store them only in environment variables; the MCP resource summaries intentionally omit raw credentials.
 
 ## API Endpoints
 

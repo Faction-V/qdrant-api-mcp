@@ -645,6 +645,20 @@ export class QdrantClient {
     return response.data;
   }
 
+  /**
+   * Get cluster/shard information for a collection
+   * @param collectionName Name of the collection
+   * @returns Promise with cluster info
+   */
+  async getCollectionClusterInfo(
+    collectionName: string
+  ): Promise<CollectionClusterInfo> {
+    const response = await this.client.get<
+      QdrantApiResponse<CollectionClusterInfo>
+    >(`/collections/${collectionName}/cluster`);
+    return response.data.result;
+  }
+
   // Points operations
 
   /**
