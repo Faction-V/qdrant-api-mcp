@@ -14,7 +14,7 @@ const rate_limiter_js_1 = require("./lib/rate-limiter.js");
 dotenv_1.default.config();
 const logger = (0, pino_1.default)({
     level: process.env.LOG_LEVEL || 'info',
-});
+}, process.stderr);
 const baseConfig = {
     QDRANT_URL: process.env.QDRANT_URL || 'http://localhost:6335',
     QDRANT_API_KEY: process.env.QDRANT_API_KEY || '',
@@ -27,11 +27,6 @@ const rateLimiter = new rate_limiter_js_1.RateLimiter({
     windowMs: parseInt(process.env.MCP_RATE_LIMIT_WINDOW_MS || '1000', 10),
     maxRequests: parseInt(process.env.MCP_RATE_LIMIT_MAX_REQUESTS || '10', 10),
 });
-logger.info({
-    activeCluster: clusterManager.getActiveClusterName(),
-    availableClusters: clusterManager.listProfiles().map((profile) => profile.name),
-    rateLimit: rateLimiter.describe(),
-}, 'Qdrant MCP server booted');
 const server = new index_js_1.Server({
     name: 'qdrant-api-server',
     version: '1.1.0',
@@ -1221,6 +1216,11 @@ function parseClusterProfiles(loggerInstance) {
 async function main() {
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
+    logger.info({
+        activeCluster: clusterManager.getActiveClusterName(),
+        availableClusters: clusterManager.listProfiles().map((profile) => profile.name),
+        rateLimit: rateLimiter.describe(),
+    }, 'Qdrant MCP server booted');
 }
 main().catch((error) => {
     logger.error({ err: error }, 'Failed to start MCP server');

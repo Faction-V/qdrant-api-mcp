@@ -29,9 +29,12 @@ import {
 
 dotenv.config();
 
-const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-});
+const logger = pino(
+  {
+    level: process.env.LOG_LEVEL || 'info',
+  },
+  process.stderr
+);
 
 const baseConfig: EnvConfig = {
   QDRANT_URL: process.env.QDRANT_URL || 'http://localhost:6335',
@@ -52,14 +55,6 @@ const rateLimiter = new RateLimiter({
   maxRequests: parseInt(process.env.MCP_RATE_LIMIT_MAX_REQUESTS || '10', 10),
 });
 
-logger.info(
-  {
-    activeCluster: clusterManager.getActiveClusterName(),
-    availableClusters: clusterManager.listProfiles().map((profile) => profile.name),
-    rateLimit: rateLimiter.describe(),
-  },
-  'Qdrant MCP server booted'
-);
 
 const server = new Server(
   {
@@ -1547,6 +1542,15 @@ function parseClusterProfiles(loggerInstance: PinoLogger) {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  logger.info(
+    {
+      activeCluster: clusterManager.getActiveClusterName(),
+      availableClusters: clusterManager.listProfiles().map((profile) => profile.name),
+      rateLimit: rateLimiter.describe(),
+    },
+    'Qdrant MCP server booted'
+  );
 }
 
 main().catch((error) => {
