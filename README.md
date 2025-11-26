@@ -42,6 +42,8 @@ The snippet above is the minimal setup and works for single-cluster projects. If
 }
 ```
 
+### Use via npx (no local checkout)
+
 Prefer not to keep a local checkout? Once `qdrant-api-mcp` is published to npm you can have Windsurf/Cursor invoke it through `npx`:
 
 ```json
@@ -468,4 +470,4 @@ qdrant_mcp/
 
 ## License
 
-ISC
+MIT © 2025 Capitol AI. See [LICENSE](LICENSE) for details.
