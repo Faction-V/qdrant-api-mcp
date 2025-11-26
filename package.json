@@ -1,8 +1,25 @@
 {
-  "name": "qdrant_mcp",
+  "name": "qdrant-api-mcp",
   "version": "1.0.0",
-  "description": "MCP server for Qdrant Collections API",
+  "description": "Model Context Protocol server for Qdrant Collections & Points APIs",
   "main": "dist/index.js",
+  "bin": {
+    "qdrant-api-mcp": "dist/mcp-server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "qdrant-mcp-config.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jordotech/qdrant-api-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jordotech/qdrant-api-mcp/issues"
+  },
+  "homepage": "https://github.com/jordotech/qdrant-api-mcp#readme",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -11,10 +28,16 @@
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node -r tsconfig-paths/register src/index.ts'",
     "dev:mcp": "nodemon --watch 'src/**/*.ts' --exec 'ts-node -r tsconfig-paths/register src/mcp-server.ts'",
     "generate-client": "openapi --input ./openapi-collections.ytt.yaml --output ./src/generated/qdrant-client",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "qdrant",
+    "mcp",
+    "model-context-protocol",
+    "vector"
+  ],
+  "author": "jordotech",
   "license": "ISC",
   "dependencies": {
     "@fastify/cors": "^11.0.1",

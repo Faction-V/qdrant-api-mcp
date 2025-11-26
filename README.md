@@ -42,6 +42,40 @@ The snippet above is the minimal setup and works for single-cluster projects. If
 }
 ```
 
+Prefer not to keep a local checkout? Once `qdrant-api-mcp` is published to npm you can have Windsurf/Cursor invoke it through `npx`:
+
+```json
+{
+  "mcpServers": {
+    "qdrant-api": {
+      "command": "npx",
+      "args": ["qdrant-api-mcp"],
+      "env": {
+        "QDRANT_URL": "http://localhost:6333",
+        "QDRANT_API_KEY": "my-secret-key-or-blank"
+      }
+    }
+  }
+}
+```
+
+The same approach works for the multi-cluster example—just reuse the JSON string for `QDRANT_CLUSTER_PROFILES`:
+
+```json
+{
+  "mcpServers": {
+    "qdrant-api": {
+      "command": "npx",
+      "args": ["qdrant-api-mcp"],
+      "env": {
+        "QDRANT_CLUSTER_PROFILES": "[{\"name\":\"prod\",\"url\":\"https://prod.example\",\"apiKey\":\"***\",\"description\":\"Production search\"},{\"name\":\"metric-media\",\"url\":\"https://metric-media.example\",\"apiKey\":\"***\",\"labels\":[\"metrics\",\"readonly\"]},{\"name\":\"test\",\"url\":\"http://localhost:6333\"}]",
+        "QDRANT_DEFAULT_CLUSTER": "prod"
+      }
+    }
+  }
+}
+```
+
 ## Features
 
 - Implements the MCP JSON-RPC specification with structured JSON logs (Pino).
@@ -85,7 +119,10 @@ HOST=localhost
    npm install
    npm run build
    ```
-2. Point your MCP-compatible IDE/agent at the compiled entrypoint (`dist/mcp-server.js`). A sample config lives in `qdrant-mcp-config.json`.
+2. Point your MCP-compatible IDE/agent at the compiled entrypoint (`dist/mcp-server.js`) or run the published binary directly with `npx qdrant-api-mcp`. A sample config lives in `qdrant-mcp-config.json`.
+   ```bash
+   QDRANT_URL=http://localhost:6333 npx qdrant-api-mcp
+   ```
 3. (Optional) Define multiple clusters in your environment:
    ```bash
    export QDRANT_CLUSTER_PROFILES='[
