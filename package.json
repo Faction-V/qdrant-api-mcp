@@ -14,12 +14,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jordotech/qdrant-api-mcp.git"
+    "url": "git+https://github.com/Faction-V/qdrant-api-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/jordotech/qdrant-api-mcp/issues"
+    "url": "https://github.com/Faction-V/qdrant-api-mcp/issues"
   },
-  "homepage": "https://github.com/jordotech/qdrant-api-mcp#readme",
+  "homepage": "https://github.com/Faction-V/qdrant-api-mcp#readme",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -37,7 +37,7 @@
     "model-context-protocol",
     "vector"
   ],
-  "author": "jordotech",
+  "author": "Faction-V",
   "license": "MIT",
   "dependencies": {
     "@fastify/cors": "^11.0.1",
