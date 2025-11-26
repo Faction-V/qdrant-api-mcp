@@ -28,7 +28,8 @@
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node -r tsconfig-paths/register src/index.ts'",
     "dev:mcp": "nodemon --watch 'src/**/*.ts' --exec 'ts-node -r tsconfig-paths/register src/mcp-server.ts'",
     "generate-client": "openapi --input ./openapi-collections.ytt.yaml --output ./src/generated/qdrant-client",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -55,6 +56,7 @@
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.14"
   }
 }

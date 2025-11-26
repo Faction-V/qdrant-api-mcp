@@ -78,6 +78,16 @@ The same approach works for the multi-cluster example—just reuse the JSON stri
 }
 ```
 
+### Inspect with MCP Inspector
+
+Test the published package without editing config files by having MCP Inspector spawn the binary directly:
+
+```bash
+npx @modelcontextprotocol/inspector npx -y qdrant-api-mcp -e QDRANT_URL=http://localhost:6333
+```
+
+This downloads `qdrant-api-mcp` via `npx`, points it at your local Qdrant instance, and drops you into the Inspector CLI so you can call tools interactively.
+
 ## Features
 
 - Implements the MCP JSON-RPC specification with structured JSON logs (Pino).
@@ -158,6 +168,16 @@ Build and run the server:
 npm run build
 npm start
 ```
+
+## Testing
+
+Integration tests run against a lightweight mock Qdrant server:
+
+```bash
+npm test
+```
+
+Use `npm run test:watch` for a persistent Vitest watcher while iterating locally.
 
 ## Operational safeguards & logging
 
