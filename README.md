@@ -12,11 +12,30 @@ To use this tool with Windsurf or Cursor, add the following to your configuratio
     "qdrant-api": {
       "command": "node",
       "args": [
-        "/Users/admin/dev/cap/qdrant-api-mcp/dist/mcp-server.js"
+        "/<update-local-path>/qdrant-api-mcp/dist/mcp-server.js"
       ],
       "env": {
         "QDRANT_URL": "http://localhost:6333",
         "QDRANT_API_KEY": "my-secret-key-or-blank"
+      }
+    }
+  }
+}
+```
+
+The snippet above is the minimal setup and works for single-cluster projects. If you want the multi-cluster workflow described in the Quickstart section, configure Windsurf/Cursor with the exported cluster profile JSON string instead:
+
+```json
+{
+  "mcpServers": {
+    "qdrant-api": {
+      "command": "node",
+      "args": [
+        "/<update-local-path>/qdrant-api-mcp/dist/mcp-server.js"
+      ],
+      "env": {
+        "QDRANT_CLUSTER_PROFILES": "[{\"name\":\"prod\",\"url\":\"https://prod.example\",\"apiKey\":\"***\",\"description\":\"Production search\"},{\"name\":\"metric-media\",\"url\":\"https://metric-media.example\",\"apiKey\":\"***\",\"labels\":[\"metrics\",\"readonly\"]},{\"name\":\"test\",\"url\":\"http://localhost:6333\"}]",
+        "QDRANT_DEFAULT_CLUSTER": "prod"
       }
     }
   }
