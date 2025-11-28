@@ -1,6 +1,6 @@
 {
   "name": "qdrant-api-mcp",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Model Context Protocol server for Qdrant Collections & Points APIs",
   "main": "dist/index.js",
   "bin": {
