@@ -18,6 +18,10 @@ export class McpServer {
   private fastify: FastifyInstance;
   private qdrantClient: QdrantClient;
   private logger: any;
+  private readonly serverInfo = {
+    name: 'qdrant-http-server',
+    version: '1.1.0',
+  };
 
   /**
    * Creates a new MCP Server instance
@@ -99,6 +103,8 @@ export class McpServer {
     const { method, params, id } = request;
 
     switch (method) {
+      case 'initialize':
+        return this.createSuccessResponse(id ?? null, this.initializeHandshake());
       case 'list_collections':
         return this.createSuccessResponse(id, await this.listCollections());
       case 'create_collection':
@@ -124,7 +130,7 @@ export class McpServer {
    * @param result Result data
    * @returns MCP response
    */
-  private createSuccessResponse(id: string | number, result: any): McpResponse {
+  private createSuccessResponse(id: string | number | null, result: any): McpResponse {
     return {
       jsonrpc: '2.0',
       id,
@@ -254,5 +260,19 @@ export class McpServer {
       this.logger.error({ error, params }, 'Error updating collection');
       throw new Error(`Failed to update collection: ${error.message}`);
     }
+  }
+
+  private initializeHandshake() {
+    return {
+      serverInfo: this.serverInfo,
+      capabilities: {
+        tools: {},
+        resources: {},
+      },
+      metadata: {
+        transport: 'http',
+        health: '/health',
+      },
+    };
   }
 }

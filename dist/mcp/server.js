@@ -13,6 +13,10 @@ class McpServer {
      * @param config Environment configuration
      */
     constructor(fastify, config) {
+        this.serverInfo = {
+            name: 'qdrant-http-server',
+            version: '1.1.0',
+        };
         this.fastify = fastify;
         this.qdrantClient = new qdrant_client_1.QdrantClient(config);
         this.logger = fastify.log;
@@ -67,6 +71,8 @@ class McpServer {
     async processRequest(request) {
         const { method, params, id } = request;
         switch (method) {
+            case 'initialize':
+                return this.createSuccessResponse(id ?? null, this.initializeHandshake());
             case 'list_collections':
                 return this.createSuccessResponse(id, await this.listCollections());
             case 'create_collection':
@@ -198,6 +204,19 @@ class McpServer {
             this.logger.error({ error, params }, 'Error updating collection');
             throw new Error(`Failed to update collection: ${error.message}`);
         }
+    }
+    initializeHandshake() {
+        return {
+            serverInfo: this.serverInfo,
+            capabilities: {
+                tools: {},
+                resources: {},
+            },
+            metadata: {
+                transport: 'http',
+                health: '/health',
+            },
+        };
     }
 }
 exports.McpServer = McpServer;

@@ -7,6 +7,7 @@ export declare class McpServer {
     private fastify;
     private qdrantClient;
     private logger;
+    private readonly serverInfo;
     /**
      * Creates a new MCP Server instance
      * @param fastify Fastify instance
@@ -80,4 +81,5 @@ export declare class McpServer {
      * @returns Success status
      */
     private updateCollection;
+    private initializeHandshake;
 }
