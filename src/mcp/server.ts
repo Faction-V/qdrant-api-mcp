@@ -40,8 +40,20 @@ export class McpServer {
    */
   private registerRoutes(): void {
     const handler = this.handleMcpRequest.bind(this);
+    const methodNotAllowed = (_req: FastifyRequest, reply: FastifyReply) =>
+      reply
+        .code(405)
+        .header('Allow', 'POST')
+        .send({
+          message:
+            'MCP endpoint only accepts POST requests containing JSON-RPC payloads.',
+        });
+
     this.fastify.post('/mcp', handler);
+    this.fastify.get('/mcp', methodNotAllowed);
+
     this.fastify.post('/:serverSlug/mcp', handler);
+    this.fastify.get('/:serverSlug/mcp', methodNotAllowed);
   }
 
   /**
