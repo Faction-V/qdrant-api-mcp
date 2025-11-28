@@ -1,7 +1,4 @@
-#!/usr/bin/env node
-
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   InitializeRequestSchema,
@@ -11,7 +8,6 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import dotenv from 'dotenv';
 import pino, { Logger as PinoLogger } from 'pino';
 import { EnvConfig } from './config/env.js';
 import {
@@ -28,41 +24,22 @@ import {
   ScrollResult,
 } from './lib/qdrant-client.js';
 
-dotenv.config();
+export interface CreateQdrantRuntimeOptions {
+  logger?: PinoLogger;
+  baseConfig?: EnvConfig;
+}
 
-const logger = pino(
-  {
-    level: process.env.LOG_LEVEL || 'info',
-  },
-  process.stderr
-);
-
-const baseConfig: EnvConfig = {
-  QDRANT_URL: process.env.QDRANT_URL || 'http://localhost:6335',
-  QDRANT_API_KEY: process.env.QDRANT_API_KEY || '',
-  PORT: parseInt(process.env.PORT || '3000', 10),
-  HOST: process.env.HOST || 'localhost',
-};
-
-const clusterEnv = parseClusterProfiles(logger);
-const clusterManager = new ClusterManager(
-  baseConfig,
-  clusterEnv.profiles,
-  clusterEnv.defaultCluster
-);
-
-const rateLimiter = new RateLimiter({
-  windowMs: parseInt(process.env.MCP_RATE_LIMIT_WINDOW_MS || '1000', 10),
-  maxRequests: parseInt(process.env.MCP_RATE_LIMIT_MAX_REQUESTS || '10', 10),
-});
-
+export interface QdrantRuntime {
+  createServer(): Server;
+  clusterManager: ClusterManager;
+  rateLimiter: RateLimiter;
+  logger: PinoLogger;
+}
 
 const serverInfo = {
   name: 'qdrant-api-server',
   version: '1.1.0',
 };
-
-const PROTOCOL_VERSION = '2024-11-05';
 
 const serverCapabilities = {
   tools: {},
@@ -95,6 +72,12 @@ interface ScrollCursorState {
   cluster: string;
   collection_name: string;
   request: ScrollRequest;
+}
+
+interface HandlerDependencies {
+  clusterManager: ClusterManager;
+  rateLimiter: RateLimiter;
+  logger: PinoLogger;
 }
 
 const clusterInputProperty = {
@@ -779,7 +762,6 @@ const toolDefinitions: ToolDefinition[] = [
 server.setRequestHandler(InitializeRequestSchema, async () => {
   const profileNames = clusterManager.listProfiles().map((profile) => profile.name);
   return {
-    protocolVersion: PROTOCOL_VERSION,
     serverInfo,
     capabilities: serverCapabilities,
     metadata: {
