@@ -253,6 +253,7 @@ Deep dive into a single point (payload + vector + shard metadata):
 ### MCP JSON-RPC Endpoint
 
 - `POST /mcp`: The main MCP JSON-RPC endpoint
+- `POST /<server-name>/mcp`: Alternate path for HTTP proxies (e.g., fastmcp runner); the server automatically accepts a leading slug.
 
 Example request:
 
@@ -280,6 +281,7 @@ Example response:
 ### Health Check
 
 - `GET /health`: Returns server health status
+- `GET /<server-name>/health`: Health endpoint behind an HTTP slug
 
 ## Available Methods
 

@@ -26,7 +26,9 @@ class McpServer {
      * Register MCP routes
      */
     registerRoutes() {
-        this.fastify.post('/mcp', this.handleMcpRequest.bind(this));
+        const handler = this.handleMcpRequest.bind(this);
+        this.fastify.post('/mcp', handler);
+        this.fastify.post('/:serverSlug/mcp', handler);
     }
     /**
      * Handle MCP JSON-RPC request

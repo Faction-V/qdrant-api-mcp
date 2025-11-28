@@ -48,9 +48,9 @@ async function bootstrap() {
         // Create MCP server
         new server_1.McpServer(server, config);
         // Add health check route
-        server.get('/health', async () => {
-            return { status: 'ok' };
-        });
+        const healthHandler = async () => ({ status: 'ok' });
+        server.get('/health', healthHandler);
+        server.get('/:serverSlug/health', healthHandler);
         // Start the server
         await server.listen({
             port: config.PORT,
