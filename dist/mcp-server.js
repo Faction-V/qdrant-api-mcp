@@ -27,14 +27,16 @@ const rateLimiter = new rate_limiter_js_1.RateLimiter({
     windowMs: parseInt(process.env.MCP_RATE_LIMIT_WINDOW_MS || '1000', 10),
     maxRequests: parseInt(process.env.MCP_RATE_LIMIT_MAX_REQUESTS || '10', 10),
 });
-const server = new index_js_1.Server({
+const serverInfo = {
     name: 'qdrant-api-server',
     version: '1.1.0',
-}, {
-    capabilities: {
-        tools: {},
-        resources: {},
-    },
+};
+const serverCapabilities = {
+    tools: {},
+    resources: {},
+};
+const server = new index_js_1.Server(serverInfo, {
+    capabilities: serverCapabilities,
 });
 const clusterInputProperty = {
     cluster: {
@@ -711,6 +713,19 @@ const toolDefinitions = [
     })),
     switchClusterTool,
 ];
+server.setRequestHandler(types_js_1.InitializeRequestSchema, async () => {
+    const profileNames = clusterManager.listProfiles().map((profile) => profile.name);
+    return {
+        serverInfo,
+        capabilities: serverCapabilities,
+        metadata: {
+            transports: ['stdio'],
+            rateLimit: rateLimiter.describe(),
+            activeCluster: clusterManager.getActiveClusterName(),
+            availableClusters: profileNames,
+        },
+    };
+});
 server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
     return {
         tools: toolDefinitions.map((tool) => ({

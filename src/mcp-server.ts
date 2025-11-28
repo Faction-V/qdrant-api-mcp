@@ -4,6 +4,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
+  InitializeRequestSchema,
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
   ListResourceTemplatesRequestSchema,
@@ -56,16 +57,20 @@ const rateLimiter = new RateLimiter({
 });
 
 
+const serverInfo = {
+  name: 'qdrant-api-server',
+  version: '1.1.0',
+};
+
+const serverCapabilities = {
+  tools: {},
+  resources: {},
+};
+
 const server = new Server(
+  serverInfo,
   {
-    name: 'qdrant-api-server',
-    version: '1.1.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-      resources: {},
-    },
+    capabilities: serverCapabilities,
   }
 );
 
@@ -768,6 +773,20 @@ const toolDefinitions: ToolDefinition[] = [
   })),
   switchClusterTool,
 ];
+
+server.setRequestHandler(InitializeRequestSchema, async () => {
+  const profileNames = clusterManager.listProfiles().map((profile) => profile.name);
+  return {
+    serverInfo,
+    capabilities: serverCapabilities,
+    metadata: {
+      transports: ['stdio'],
+      rateLimit: rateLimiter.describe(),
+      activeCluster: clusterManager.getActiveClusterName(),
+      availableClusters: profileNames,
+    },
+  };
+});
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {

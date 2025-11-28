@@ -91,6 +91,7 @@ This downloads `qdrant-api-mcp` via `npx`, points it at your local Qdrant instan
 ## Features
 
 - Implements the MCP JSON-RPC specification with structured JSON logs (Pino).
+- Responds to the MCP `initialize` handshake with cluster metadata so stdio and HTTP transports (Inspector, MCP runners) can connect without custom shims.
 - Resource discovery (`resources/list`, `resources/read`, `resources/templates/list`) advertises every configured cluster profile so MCP-aware tooling can “ping” the server before invoking tools.
 - Multi-cluster operation via optional `QDRANT_CLUSTER_PROFILES` and a `switch_cluster` tool. Change clusters without restarting the process.
 - Built-in request throttling (configurable via `MCP_RATE_LIMIT_MAX_REQUESTS`/`MCP_RATE_LIMIT_WINDOW_MS`) to prevent runaway hybrid queries.
