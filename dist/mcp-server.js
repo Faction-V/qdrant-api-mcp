@@ -31,6 +31,7 @@ const serverInfo = {
     name: 'qdrant-api-server',
     version: '1.1.0',
 };
+const PROTOCOL_VERSION = '2024-11-05';
 const serverCapabilities = {
     tools: {},
     resources: {},
@@ -716,6 +717,7 @@ const toolDefinitions = [
 server.setRequestHandler(types_js_1.InitializeRequestSchema, async () => {
     const profileNames = clusterManager.listProfiles().map((profile) => profile.name);
     return {
+        protocolVersion: PROTOCOL_VERSION,
         serverInfo,
         capabilities: serverCapabilities,
         metadata: {
