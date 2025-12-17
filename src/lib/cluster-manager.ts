@@ -101,6 +101,42 @@ export class ClusterManager {
     return entry;
   }
 
+  /**
+   * Register a cluster dynamically using URL and API key.
+   * Returns a stable cluster name for the URL that can be used in subsequent calls.
+   * If a cluster with this URL is already registered, returns the existing name.
+   *
+   * @param url - The Qdrant cluster URL
+   * @param apiKey - Optional API key for authentication
+   * @returns The cluster name to use in tool calls
+   */
+  registerDynamicCluster(url: string, apiKey?: string): string {
+    // Generate stable name from URL hash
+    const hash = require('crypto')
+      .createHash('sha256')
+      .update(url)
+      .digest('hex')
+      .substring(0, 12);
+    const clusterName = `dynamic-${hash}`;
+
+    // Check if already registered
+    if (this.profiles.has(clusterName)) {
+      return clusterName;
+    }
+
+    // Register new dynamic cluster
+    const profile: ClusterProfile = {
+      name: clusterName,
+      url,
+      apiKey: apiKey ?? '',
+      description: `Dynamic cluster: ${url}`,
+      labels: ['dynamic'],
+    };
+
+    this.profiles.set(clusterName, profile);
+    return clusterName;
+  }
+
   private normalizeProfiles(profiles: ClusterProfile[]): ClusterProfile[] {
     const seen = new Set<string>();
     return profiles
