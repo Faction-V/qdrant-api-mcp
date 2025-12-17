@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClusterManager = void 0;
 const qdrant_client_1 = require("./qdrant-client");
+const crypto_1 = require("crypto");
 /**
  * Manages named Qdrant cluster profiles and lazily-instantiated clients.
  */
@@ -61,6 +62,92 @@ class ClusterManager {
         const entry = { profile, client };
         this.clients.set(profile.name, entry);
         return entry;
+    }
+    /**
+     * Register a cluster dynamically using URL and API key.
+     * Returns a stable cluster name for the URL that can be used in subsequent calls.
+     * If a cluster with this URL is already registered, returns the existing name.
+     *
+     * @param url - The Qdrant cluster URL
+     * @param apiKey - Optional API key for authentication
+     * @returns The cluster name to use in tool calls
+     */
+    registerDynamicCluster(url, apiKey) {
+        // Input validation
+        if (!url || typeof url !== 'string' || url.trim() === '') {
+            throw new Error('URL is required and must be a non-empty string');
+        }
+        // Validate URL format
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+        }
+        catch (error) {
+            throw new Error(`Invalid URL format: ${url}. ${error instanceof Error ? error.message : String(error)}`);
+        }
+        // Normalize URL before hashing
+        const normalizedUrl = this.normalizeUrl(parsedUrl);
+        // Generate stable name from normalized URL hash
+        const hash = (0, crypto_1.createHash)('sha256')
+            .update(normalizedUrl)
+            .digest('hex')
+            .substring(0, 12);
+        const clusterName = `dynamic-${hash}`;
+        // Check if already registered
+        if (this.profiles.has(clusterName)) {
+            return clusterName;
+        }
+        // Register new dynamic cluster
+        const profile = {
+            name: clusterName,
+            url: normalizedUrl,
+            apiKey: apiKey ?? '',
+            description: `Dynamic cluster: ${normalizedUrl}`,
+            labels: ['dynamic'],
+        };
+        this.profiles.set(clusterName, profile);
+        return clusterName;
+    }
+    /**
+     * Normalize URL for consistent hashing and comparison.
+     * - Lowercases hostname
+     * - Removes trailing slashes
+     * - Removes default ports (443 for https, 80 for http)
+     * - Handles malformed URLs gracefully
+     */
+    normalizeUrl(parsedUrl) {
+        try {
+            // Lowercase the hostname
+            const hostname = parsedUrl.hostname.toLowerCase();
+            // Get the protocol
+            const protocol = parsedUrl.protocol;
+            // Remove default ports
+            let port = parsedUrl.port;
+            if ((protocol === 'https:' && port === '443') || (protocol === 'http:' && port === '80')) {
+                port = '';
+            }
+            // Reconstruct the URL
+            let normalized = `${protocol}//${hostname}`;
+            if (port) {
+                normalized += `:${port}`;
+            }
+            // Add pathname, removing trailing slashes
+            let pathname = parsedUrl.pathname;
+            if (pathname.endsWith('/') && pathname.length > 1) {
+                pathname = pathname.slice(0, -1);
+            }
+            normalized += pathname;
+            // Add search params if present
+            if (parsedUrl.search) {
+                normalized += parsedUrl.search;
+            }
+            return normalized;
+        }
+        catch (error) {
+            // If normalization fails for any reason, return the original URL string
+            // This ensures we don't break existing functionality
+            return parsedUrl.toString();
+        }
     }
     normalizeProfiles(profiles) {
         const seen = new Set();

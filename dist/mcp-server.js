@@ -42,7 +42,15 @@ const server = new index_js_1.Server(serverInfo, {
 const clusterInputProperty = {
     cluster: {
         type: 'string',
-        description: 'Optional cluster profile. Defaults to the active cluster set via switch_cluster.',
+        description: 'Optional cluster profile name. Defaults to the active cluster set via switch_cluster. Mutually exclusive with cluster_url.',
+    },
+    cluster_url: {
+        type: 'string',
+        description: 'Optional dynamic cluster URL. When provided, connects to this cluster directly. Mutually exclusive with cluster.',
+    },
+    cluster_api_key: {
+        type: 'string',
+        description: 'Optional API key for the dynamic cluster. Only used when cluster_url is provided.',
     },
 };
 const clusterAwareTools = [
@@ -806,7 +814,6 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
     const clusterForLimit = typeof args.cluster === 'string'
         ? args.cluster
         : clusterManager.getActiveClusterName();
-    const clusterArg = args.cluster;
     const startTime = Date.now();
     try {
         rateLimiter.consume(`${toolName}:${clusterForLimit}`);
@@ -820,7 +827,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
         let result;
         switch (toolName) {
             case 'list_collections': {
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.getCollections();
                     const collections = response.collections?.map((c) => c.name) ?? [];
                     return jsonContent({ cluster: profile.name, collections });
@@ -832,7 +839,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const collection = await client.getCollection(collection_name);
                     return jsonContent({ cluster: profile.name, collection });
                 });
@@ -844,7 +851,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const success = await client.createCollection(collection_name, collectionParams, timeout);
                     return jsonContent({ cluster: profile.name, success });
                 });
@@ -855,7 +862,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const success = await client.deleteCollection(collection_name, timeout);
                     return jsonContent({ cluster: profile.name, success });
                 });
@@ -867,7 +874,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const success = await client.updateCollection(collection_name, updateParams, timeout);
                     return jsonContent({ cluster: profile.name, success });
                 });
@@ -879,7 +886,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                     throw new Error('collection_name and points are required');
                 }
                 const typedPoints = points;
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.upsertPoints(collection_name, { points: typedPoints }, wait);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -891,7 +898,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.searchPoints(collection_name, searchParams);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -903,7 +910,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.scrollPoints(collection_name, scrollParams);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -919,7 +926,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.countPoints(collection_name, countParams);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -931,7 +938,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.recommendPoints(collection_name, recommendParams);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -942,14 +949,14 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name || point_id === undefined) {
                     throw new Error('collection_name and point_id are required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.getPoint(collection_name, point_id);
                     return jsonContent({ cluster: profile.name, response });
                 });
                 break;
             }
             case 'describe_point': {
-                result = await describePoint(args, clusterArg);
+                result = await describePoint(args);
                 break;
             }
             case 'delete_point': {
@@ -957,7 +964,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name || point_id === undefined) {
                     throw new Error('collection_name and point_id are required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.deletePoint(collection_name, point_id, wait);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -969,7 +976,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.deletePoints(collection_name, deleteParams, wait);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -981,7 +988,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.setPayload(collection_name, payloadParams, wait);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -993,7 +1000,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.overwritePayload(collection_name, payloadParams, wait);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -1005,7 +1012,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.deletePayload(collection_name, deleteParams, wait);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -1017,7 +1024,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 if (!collection_name) {
                     throw new Error('collection_name is required');
                 }
-                result = await runClusterTool(clusterArg, async (client, profile) => {
+                result = await runClusterTool(args, async (client, profile) => {
                     const response = await client.clearPayload(collection_name, clearParams, wait);
                     return jsonContent({ cluster: profile.name, response });
                 });
@@ -1079,7 +1086,11 @@ async function handlePaginatedScroll(args) {
         with_payload: scrollParams.with_payload,
         with_vector: scrollParams.with_vector,
     };
-    return runClusterTool(resolvedCluster, async (client, profile) => {
+    // TODO: Paginated scroll doesn't support dynamic clusters yet
+    // To support dynamic clusters with pagination, we would need to store cluster_url and api_key
+    // in the cursor state, not just the cluster name. This would allow subsequent paginated
+    // requests to continue using the same dynamic cluster credentials across page boundaries.
+    return runClusterTool({ cluster: resolvedCluster }, async (client, profile) => {
         const response = await client.scrollPoints(targetCollection, request);
         const nextCursor = response.next_page_offset
             ? encodeCursor({
@@ -1100,12 +1111,12 @@ async function handlePaginatedScroll(args) {
         });
     });
 }
-async function describePoint(args, clusterName) {
+async function describePoint(args) {
     const { collection_name, point_id } = args;
     if (!collection_name || point_id === undefined) {
         throw new Error('collection_name and point_id are required');
     }
-    return runClusterTool(clusterName, async (client, profile) => {
+    return runClusterTool(args, async (client, profile) => {
         const point = await client.getPoint(collection_name, point_id);
         const collectionResponse = (await client.getCollection(collection_name));
         const collectionInfo = collectionResponse.result || collectionResponse;
@@ -1146,7 +1157,20 @@ function errorContent(message) {
         isError: true,
     };
 }
-async function runClusterTool(clusterName, handler) {
+async function runClusterTool(args, handler) {
+    let clusterName = args.cluster;
+    // Handle dynamic cluster registration
+    if (args.cluster_url) {
+        if (args.cluster) {
+            throw new Error('Cannot specify both cluster and cluster_url parameters');
+        }
+        clusterName = clusterManager.registerDynamicCluster(args.cluster_url, args.cluster_api_key);
+        logger.info({
+            event: 'dynamic_cluster_registered',
+            cluster_url: args.cluster_url,
+            cluster_name: clusterName,
+        });
+    }
     const { client, profile } = clusterManager.getClient(clusterName);
     return handler(client, profile);
 }

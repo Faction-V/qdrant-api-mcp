@@ -1382,6 +1382,10 @@ async function handlePaginatedScroll(
     with_vector: scrollParams.with_vector as boolean | string[] | undefined,
   };
 
+  // TODO: Paginated scroll doesn't support dynamic clusters yet
+  // To support dynamic clusters with pagination, we would need to store cluster_url and api_key
+  // in the cursor state, not just the cluster name. This would allow subsequent paginated
+  // requests to continue using the same dynamic cluster credentials across page boundaries.
   return runClusterTool(
     { cluster: resolvedCluster } as ClusterAwareArgs,
     async (client, profile) => {
@@ -1414,7 +1418,7 @@ async function handlePaginatedScroll(
 async function describePoint(
   args: Record<string, unknown>
 ): Promise<CallToolResult> {
-  const { collection_name, point_id, cluster } = args as ClusterAwareArgs & {
+  const { collection_name, point_id } = args as ClusterAwareArgs & {
     collection_name?: string;
     point_id?: string | number;
   };
@@ -1422,7 +1426,7 @@ async function describePoint(
     throw new Error('collection_name and point_id are required');
   }
 
-  return runClusterTool({ cluster } as ClusterAwareArgs, async (client, profile) => {
+  return runClusterTool(args as ClusterAwareArgs, async (client, profile) => {
     const point = await client.getPoint(collection_name, point_id);
     const collectionResponse = (await client.getCollection(
       collection_name
