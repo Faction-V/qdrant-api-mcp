@@ -101,6 +101,69 @@ This downloads `qdrant-api-mcp` via `npx`, points it at your local Qdrant instan
   - `switch_cluster`: inspects or updates the active cluster.
 - All existing collection & point tools remain available: `list_collections`, `create_collection`, `get_collection`, `delete_collection`, `update_collection`, `upsert_points`, `search_points`, `scroll_points`, `count_points`, `recommend_points`, `get_point`, `delete_point`, `delete_points`, `set_payload`, `overwrite_payload`, `delete_payload`, `clear_payload`.
 
+### Dynamic Cluster Registration
+
+For applications that discover clusters at runtime (e.g., from a database), you can provide cluster credentials directly in tool calls instead of pre-configuring profiles:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "list_collections",
+    "arguments": {
+      "cluster_url": "https://xyz-cluster.cloud.qdrant.io:6333",
+      "cluster_api_key": "your-api-key-here"
+    }
+  }
+}
+```
+
+**How it works:**
+- When you provide `cluster_url` (and optionally `cluster_api_key`), the server automatically registers the cluster with a stable generated name
+- The cluster remains cached for the lifetime of the server process
+- Subsequent calls to the same `cluster_url` reuse the cached connection
+- URLs are normalized (lowercased hostname, trailing slashes removed, default ports stripped) so `https://example.com/` and `https://example.com` register as the same cluster
+
+**When to use:**
+- ✅ Multi-tenant applications where each user has their own Qdrant cluster
+- ✅ Dynamic environments where cluster URLs are stored in a database
+- ✅ Testing against ephemeral clusters that change frequently
+- ❌ Static configurations with a known set of clusters (use `QDRANT_CLUSTER_PROFILES` instead)
+
+**Important notes:**
+- `cluster_url` and `cluster` parameters are mutually exclusive—you cannot use both in the same call
+- Dynamic clusters do not support the `scroll_points_paginated` cursor feature (the cursor state does not preserve dynamic credentials)
+- For production workloads with a stable set of clusters, pre-configured profiles via `QDRANT_CLUSTER_PROFILES` are recommended for better performance and observability
+
+**Example with all cluster options:**
+
+```json
+// Option 1: Use pre-configured profile
+{
+  "name": "list_collections",
+  "arguments": {
+    "cluster": "prod"
+  }
+}
+
+// Option 2: Use dynamic cluster URL
+{
+  "name": "list_collections",
+  "arguments": {
+    "cluster_url": "https://customer-123.qdrant.io",
+    "cluster_api_key": "secret-key"
+  }
+}
+
+// Option 3: Use default cluster (no cluster parameter)
+{
+  "name": "list_collections",
+  "arguments": {}
+}
+```
+
 ## Prerequisites
 
 - Node.js (v16 or higher)
