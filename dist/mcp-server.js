@@ -6,6 +6,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
+const streamableHttp_js_1 = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
+const http_1 = require("http");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 const dotenv_1 = __importDefault(require("dotenv"));
 const pino_1 = __importDefault(require("pino"));
@@ -1255,13 +1257,66 @@ function parseClusterProfiles(loggerInstance) {
     }
 }
 async function main() {
-    const transport = new stdio_js_1.StdioServerTransport();
-    await server.connect(transport);
-    logger.info({
-        activeCluster: clusterManager.getActiveClusterName(),
-        availableClusters: clusterManager.listProfiles().map((profile) => profile.name),
-        rateLimit: rateLimiter.describe(),
-    }, 'Qdrant MCP server booted');
+    const port = baseConfig.PORT;
+    const host = baseConfig.HOST;
+    // Use HTTP transport if PORT is set, otherwise use STDIO
+    if (port && port !== 3000) {
+        logger.info({ port, host }, 'Starting MCP server in HTTP mode');
+        // Create HTTP transport (stateless mode)
+        const transport = new streamableHttp_js_1.StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined, // Stateless mode
+        });
+        await server.connect(transport);
+        // Create HTTP server
+        const httpServer = (0, http_1.createServer)(async (req, res) => {
+            // Extract path after optional server slug
+            const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
+            const path = url.pathname;
+            // Health check endpoint
+            if (path === '/health' || path.endsWith('/health')) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'ok' }));
+                return;
+            }
+            // MCP endpoint (supports /mcp or /server-name/mcp paths)
+            if (path === '/mcp' || path.endsWith('/mcp')) {
+                try {
+                    await transport.handleRequest(req, res);
+                }
+                catch (error) {
+                    logger.error({ err: error }, 'Failed to handle MCP request');
+                    if (!res.headersSent) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Internal server error' }));
+                    }
+                }
+                return;
+            }
+            // 404 for other paths
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Not found' }));
+        });
+        httpServer.listen(port, host, () => {
+            logger.info({
+                port,
+                host,
+                activeCluster: clusterManager.getActiveClusterName(),
+                availableClusters: clusterManager.listProfiles().map((profile) => profile.name),
+                rateLimit: rateLimiter.describe(),
+            }, 'Qdrant MCP server booted (HTTP mode)');
+        });
+    }
+    else {
+        // STDIO mode
+        logger.info('Starting MCP server in STDIO mode');
+        const transport = new stdio_js_1.StdioServerTransport();
+        await server.connect(transport);
+        logger.info({
+            activeCluster: clusterManager.getActiveClusterName(),
+            availableClusters: clusterManager.listProfiles().map((profile) => profile.name),
+            rateLimit: rateLimiter.describe(),
+        }, 'Qdrant MCP server booted (STDIO mode)');
+    }
 }
 main().catch((error) => {
     logger.error({ err: error }, 'Failed to start MCP server');
