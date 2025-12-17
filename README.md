@@ -134,8 +134,9 @@ For applications that discover clusters at runtime (e.g., from a database), you 
 
 **Important notes:**
 - `cluster_url` and `cluster` parameters are mutually exclusive—you cannot use both in the same call
-- Dynamic clusters do not support the `scroll_points_paginated` cursor feature (the cursor state does not preserve dynamic credentials)
-- For production workloads with a stable set of clusters, pre-configured profiles via `QDRANT_CLUSTER_PROFILES` are recommended for better performance and observability
+- Dynamic clusters do not support the `scroll_points_paginated` cursor feature (this is a stateful pagination tool that preserves scroll position across calls; the cursor state does not preserve dynamic credentials for security reasons)
+- **Security:** Dynamic cluster credentials are passed in tool arguments and may appear in logs or error messages. For production workloads handling sensitive data, pre-configured profiles are recommended to reduce credential exposure
+- For production workloads with a stable set of clusters, pre-configured profiles via `QDRANT_CLUSTER_PROFILES` are recommended for better performance (connection pooling, optimized rate limiting) and observability
 
 **Example with all cluster options:**
 
