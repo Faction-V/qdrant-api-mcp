@@ -89,6 +89,8 @@ interface ToolDefinition {
 
 interface ClusterAwareArgs {
   cluster?: string;
+  cluster_url?: string;
+  cluster_api_key?: string;
 }
 
 interface ScrollCursorState {
@@ -100,7 +102,15 @@ interface ScrollCursorState {
 const clusterInputProperty = {
   cluster: {
     type: 'string',
-    description: 'Optional cluster profile. Defaults to the active cluster set via switch_cluster.',
+    description: 'Optional cluster profile name. Defaults to the active cluster set via switch_cluster. Mutually exclusive with cluster_url.',
+  },
+  cluster_url: {
+    type: 'string',
+    description: 'Optional dynamic cluster URL. When provided, connects to this cluster directly. Mutually exclusive with cluster.',
+  },
+  cluster_api_key: {
+    type: 'string',
+    description: 'Optional API key for the dynamic cluster. Only used when cluster_url is provided.',
   },
 };
 
@@ -882,7 +892,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     typeof args.cluster === 'string'
       ? (args.cluster as string)
       : clusterManager.getActiveClusterName();
-  const clusterArg = (args as ClusterAwareArgs).cluster;
   const startTime = Date.now();
 
   try {
@@ -899,7 +908,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (toolName) {
       case 'list_collections': {
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.getCollections();
             const collections = response.collections?.map((c) => c.name) ?? [];
@@ -917,7 +926,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const collection = await client.getCollection(collection_name);
             return jsonContent({ cluster: profile.name, collection });
@@ -939,7 +948,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const success = await client.createCollection(
               collection_name,
@@ -961,7 +970,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const success = await client.deleteCollection(
               collection_name,
@@ -986,7 +995,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const success = await client.updateCollection(
               collection_name,
@@ -1010,7 +1019,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         const typedPoints = points as PointRecord[];
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.upsertPoints(
               collection_name,
@@ -1035,7 +1044,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.searchPoints(
               collection_name,
@@ -1059,7 +1068,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.scrollPoints(
               collection_name,
@@ -1088,7 +1097,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.countPoints(
               collection_name,
@@ -1112,7 +1121,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.recommendPoints(
               collection_name,
@@ -1133,7 +1142,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name and point_id are required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.getPoint(collection_name, point_id);
             return jsonContent({ cluster: profile.name, response });
@@ -1143,7 +1152,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'describe_point': {
-        result = await describePoint(args, clusterArg);
+        result = await describePoint(args);
         break;
       }
 
@@ -1157,7 +1166,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name and point_id are required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.deletePoint(
               collection_name,
@@ -1183,7 +1192,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.deletePoints(
               collection_name,
@@ -1209,7 +1218,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.setPayload(
               collection_name,
@@ -1235,7 +1244,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.overwritePayload(
               collection_name,
@@ -1261,7 +1270,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.deletePayload(
               collection_name,
@@ -1287,7 +1296,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('collection_name is required');
         }
         result = await runClusterTool(
-          clusterArg,
+          args as ClusterAwareArgs,
           async (client, profile) => {
             const response = await client.clearPayload(
               collection_name,
@@ -1374,7 +1383,7 @@ async function handlePaginatedScroll(
   };
 
   return runClusterTool(
-    resolvedCluster,
+    { cluster: resolvedCluster } as ClusterAwareArgs,
     async (client, profile) => {
       const response: ScrollResult = await client.scrollPoints(
         targetCollection,
@@ -1403,10 +1412,9 @@ async function handlePaginatedScroll(
 }
 
 async function describePoint(
-  args: Record<string, unknown>,
-  clusterName: string | undefined
+  args: Record<string, unknown>
 ): Promise<CallToolResult> {
-  const { collection_name, point_id } = args as ClusterAwareArgs & {
+  const { collection_name, point_id, cluster } = args as ClusterAwareArgs & {
     collection_name?: string;
     point_id?: string | number;
   };
@@ -1414,7 +1422,7 @@ async function describePoint(
     throw new Error('collection_name and point_id are required');
   }
 
-  return runClusterTool(clusterName, async (client, profile) => {
+  return runClusterTool({ cluster } as ClusterAwareArgs, async (client, profile) => {
     const point = await client.getPoint(collection_name, point_id);
     const collectionResponse = (await client.getCollection(
       collection_name
@@ -1461,9 +1469,27 @@ function errorContent(message: string): CallToolResult {
 }
 
 async function runClusterTool(
-  clusterName: string | undefined,
+  args: ClusterAwareArgs,
   handler: (client: QdrantClient, profile: ClusterProfile) => Promise<CallToolResult>
 ): Promise<CallToolResult> {
+  let clusterName = args.cluster;
+
+  // Handle dynamic cluster registration
+  if (args.cluster_url) {
+    if (args.cluster) {
+      throw new Error('Cannot specify both cluster and cluster_url parameters');
+    }
+    clusterName = clusterManager.registerDynamicCluster(
+      args.cluster_url,
+      args.cluster_api_key
+    );
+    logger.info({
+      event: 'dynamic_cluster_registered',
+      cluster_url: args.cluster_url,
+      cluster_name: clusterName,
+    });
+  }
+
   const { client, profile } = clusterManager.getClient(clusterName);
   return handler(client, profile);
 }
