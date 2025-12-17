@@ -1,5 +1,6 @@
 import { EnvConfig } from '../config/env';
 import { QdrantClient } from './qdrant-client';
+import { createHash } from 'crypto';
 
 export interface ClusterProfile {
   name: string;
@@ -111,10 +112,25 @@ export class ClusterManager {
    * @returns The cluster name to use in tool calls
    */
   registerDynamicCluster(url: string, apiKey?: string): string {
-    // Generate stable name from URL hash
-    const hash = require('crypto')
-      .createHash('sha256')
-      .update(url)
+    // Input validation
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      throw new Error('URL is required and must be a non-empty string');
+    }
+
+    // Validate URL format
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch (error) {
+      throw new Error(`Invalid URL format: ${url}. ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Normalize URL before hashing
+    const normalizedUrl = this.normalizeUrl(parsedUrl);
+
+    // Generate stable name from normalized URL hash
+    const hash = createHash('sha256')
+      .update(normalizedUrl)
       .digest('hex')
       .substring(0, 12);
     const clusterName = `dynamic-${hash}`;
@@ -127,14 +143,61 @@ export class ClusterManager {
     // Register new dynamic cluster
     const profile: ClusterProfile = {
       name: clusterName,
-      url,
+      url: normalizedUrl,
       apiKey: apiKey ?? '',
-      description: `Dynamic cluster: ${url}`,
+      description: `Dynamic cluster: ${normalizedUrl}`,
       labels: ['dynamic'],
     };
 
     this.profiles.set(clusterName, profile);
     return clusterName;
+  }
+
+  /**
+   * Normalize URL for consistent hashing and comparison.
+   * - Lowercases hostname
+   * - Removes trailing slashes
+   * - Removes default ports (443 for https, 80 for http)
+   * - Handles malformed URLs gracefully
+   */
+  private normalizeUrl(parsedUrl: URL): string {
+    try {
+      // Lowercase the hostname
+      const hostname = parsedUrl.hostname.toLowerCase();
+
+      // Get the protocol
+      const protocol = parsedUrl.protocol;
+
+      // Remove default ports
+      let port = parsedUrl.port;
+      if ((protocol === 'https:' && port === '443') || (protocol === 'http:' && port === '80')) {
+        port = '';
+      }
+
+      // Reconstruct the URL
+      let normalized = `${protocol}//${hostname}`;
+      if (port) {
+        normalized += `:${port}`;
+      }
+
+      // Add pathname, removing trailing slashes
+      let pathname = parsedUrl.pathname;
+      if (pathname.endsWith('/') && pathname.length > 1) {
+        pathname = pathname.slice(0, -1);
+      }
+      normalized += pathname;
+
+      // Add search params if present
+      if (parsedUrl.search) {
+        normalized += parsedUrl.search;
+      }
+
+      return normalized;
+    } catch (error) {
+      // If normalization fails for any reason, return the original URL string
+      // This ensures we don't break existing functionality
+      return parsedUrl.toString();
+    }
   }
 
   private normalizeProfiles(profiles: ClusterProfile[]): ClusterProfile[] {
