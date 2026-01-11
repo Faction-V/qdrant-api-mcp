@@ -763,6 +763,38 @@ const clusterAwareTools: ToolDefinition[] = [
       required: ['collection_name'],
     },
   },
+  {
+    name: 'count_unique_by_field',
+    description: 'Count unique values of a specified payload field across points in a collection. Useful for counting unique documents by external_id or other grouping fields. Returns the total count of unique values and optionally a breakdown by value.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        collection_name: {
+          type: 'string',
+          description: 'Name of the collection',
+        },
+        field_name: {
+          type: 'string',
+          description: 'The payload field to aggregate unique values from (e.g., "external_id" for unique documents)',
+        },
+        filter: {
+          type: 'object',
+          description: 'Optional filter conditions to apply before counting',
+        },
+        include_breakdown: {
+          type: 'boolean',
+          description: 'If true, return a breakdown of counts per unique value. If false, return only the total count of unique values. Default: false',
+          default: false,
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of unique values to include in breakdown (only used when include_breakdown=true). Default: 100',
+          default: 100,
+        },
+      },
+      required: ['collection_name', 'field_name'],
+    },
+  },
 ];
 
 const switchClusterTool: ToolDefinition = {
@@ -1105,6 +1137,91 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               collection_name,
               countParams as any
             );
+            return jsonContent({ cluster: profile.name, response });
+          }
+        );
+        break;
+      }
+
+      case 'count_unique_by_field': {
+        const {
+          cluster: _cluster,
+          ...rawArgs
+        } = args as ClusterAwareArgs & {
+          collection_name?: string;
+          field_name?: string;
+          filter?: any;
+          include_breakdown?: boolean;
+          limit?: number;
+        };
+        const {
+          collection_name,
+          field_name,
+          filter,
+          include_breakdown = false,
+          limit = 100,
+        } = rawArgs;
+
+        if (!collection_name) {
+          throw new Error('collection_name is required');
+        }
+        if (!field_name) {
+          throw new Error('field_name is required');
+        }
+
+        result = await runClusterTool(
+          args as ClusterAwareArgs,
+          async (client, profile) => {
+            // Scroll through all points to aggregate unique field values
+            const uniqueValues = new Map<string, number>();
+            let offset: string | number | null | undefined = undefined;
+            let hasMore = true;
+            const scrollLimit = 1000; // Batch size for scrolling
+
+            while (hasMore) {
+              const scrollResult: ScrollResult = await client.scrollPoints(
+                collection_name,
+                {
+                  filter,
+                  limit: scrollLimit,
+                  offset,
+                  with_payload: true,
+                  with_vector: false,
+                }
+              );
+
+              // Extract unique values from the specified field
+              for (const point of scrollResult.points || []) {
+                if (point.payload && field_name in point.payload) {
+                  const value = point.payload[field_name];
+                  // Convert to string for consistent Map key
+                  const key = String(value);
+                  uniqueValues.set(key, (uniqueValues.get(key) || 0) + 1);
+                }
+              }
+
+              // Check if there are more points to scroll
+              offset = scrollResult.next_page_offset;
+              hasMore = offset !== null && offset !== undefined;
+            }
+
+            const totalUniqueCount = uniqueValues.size;
+            const response: any = {
+              count: totalUniqueCount,
+              field_name,
+            };
+
+            if (include_breakdown) {
+              // Convert Map to array and sort by count descending
+              const breakdown = Array.from(uniqueValues.entries())
+                .map(([value, count]) => ({ value, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, limit);
+
+              response.breakdown = breakdown;
+              response.breakdown_truncated = uniqueValues.size > limit;
+            }
+
             return jsonContent({ cluster: profile.name, response });
           }
         );
